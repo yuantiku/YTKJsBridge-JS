@@ -4,7 +4,7 @@ module.exports = {
   entry: ['./src/index.js'],
   devtool: process.env.BUILD_ENV !== 'production' ? 'inline-source-map' : undefined,
   output: {
-    filename: 'JSBridge.js',
+    filename: 'index.js',
     path: path.resolve(__dirname)
   },
   module: {

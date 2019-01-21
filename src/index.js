@@ -120,3 +120,5 @@ var WebView = {
   window.dispatchNativeEvent = WebView.handleEventCall.bind(WebView);
   window.JSBridge = WebView;
 })();
+
+exports.JSBridge = WebView;

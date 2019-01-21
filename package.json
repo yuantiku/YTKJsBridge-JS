@@ -1,10 +1,9 @@
 {
-  "name": "YTKJsBridge-JS",
+  "name": "ytk-jsbridge",
   "version": "1.0.0",
   "description": "A library use to connect native and JS.",
   "main": "index.js",
   "scripts": {
-    "dev": "BUILD_ENV=development webpack --watch --mode=development --config webpack.config.js",
     "build": "BUILD_ENV=production webpack --mode=production --config webpack.config.js"
   },
   "repository": {
