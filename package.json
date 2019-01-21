@@ -1,0 +1,28 @@
+{
+  "name": "YTKJsBridge-JS",
+  "version": "1.0.0",
+  "description": "A library use to connect native and JS.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "BUILD_ENV=development webpack --watch --mode=development --config webpack.config.js",
+    "build": "BUILD_ENV=production webpack --mode=production --config webpack.config.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "jsbridge",
+    "javascript"
+  ],
+  "author": "chenhm",
+  "license": "MIT",
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.4",
+    "babel-preset-env": "^1.6.1",
+    "webpack": "^4.27.0",
+    "webpack-cli": "^3.1.2"
+  },
+  "dependencies": {}
+}
