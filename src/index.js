@@ -1,44 +1,59 @@
 // Android 与 JS 通信，只能接收 string，返回传入 object
 // IOS 与 JS 通信，接收 && 返回都是 object
-var WebView = {
-  uid: 1,
-  inIOS: window.YTKJsBridge && typeof window.YTKJsBridge === 'function',
-  call: function (method, args, async) {
+class JSBridge {
+  constructor() {
+    this.uid = 1;
+    this.inIOS = window.YTKJsBridge && typeof window.YTKJsBridge === 'function';
+    // 处理 Android 调用 JS 的回调方法
+    window.dispatchCallbackFromNative = this.handleTrigger.bind(this);
+    // 处理 Android 调用 JS 提供的服务
+    window.dispatchNativeCall = this.handleCall.bind(this);
+    // 注册客户端向 JS 发送事件
+    window.dispatchNativeEvent = this.handleEventCall.bind(this);
+  }
+
+  call(methodName, args, async) {
     if (async) {
-      // 异步情形
-      var callId = this.bindTrigger(args);
-      var isEmpty = this.isEmptyObject(args);
-      var data = {
-        methodName: method,
+      // 异步
+      const callId = this.bindTrigger(args);
+      const isEmpty = this.isEmptyObject(args);
+      const data = {
+        methodName,
         args: isEmpty ? null : args,
-        callId: callId
+        callId
       };
       if (this.inIOS) {
-        window.YTKJsBridge(data);
+        window.YTKJsBridge && window.YTKJsBridge(data);
       } else {
         window.YTKJsBridge.callNative(JSON.stringify(data));
       }
       return false;
     } else {
-      // 同步情形
-      var isEmptySync = this.isEmptyObject(args);
-      var dataSync = {
-        methodName: method,
-        args: isEmptySync ? null : args,
+      // 同步
+      const isEmpty = this.isEmptyObject(args);
+      const data = {
+        methodName,
+        args: isEmpty ? null : args,
         callId: -1
       }
       if (this.inIOS) {
-        return window.YTKJsBridge(dataSync);
+        return window.YTKJsBridge(data);
       } else {
         // Android 同步调用的返回值是 string
-        var res = window.YTKJsBridge.callNative(JSON.stringify(dataSync));
+        const res = window.YTKJsBridge.callNative(JSON.stringify(data));
         return JSON.parse(res);
       }
     }
-  },
-  emit: function (method, args) {
-    var data = {
-      event: method,
+  }
+
+  provide(methodName, callback) {
+    // 注册全局监听 call 函数
+    window[methodName] = callback;
+  }
+
+  emit(methodName, args) {
+    const data = {
+      event: methodName,
       arg: args
     };
     if (this.inIOS) {
@@ -46,79 +61,71 @@ var WebView = {
     } else {
       window.YTKJsBridge.sendEvent(JSON.stringify(data));
     }
-  },
-  listen: function (method, callback) {
-    if (this[method]) {
-      this[method] = null;
+  }
+
+  listen(methodName, callback) {
+    if (this[methodName]) {
+      this[methodName] = null;
     }
-    this[method] = callback;
-  },
-  bindTrigger: function (args) {
-    // 注册全局 trigger 函数
-    var callback = args && args.trigger;
+    this[methodName] = callback;
+  }
+
+  bindTrigger(args) {
+    const callback = args && args.trigger;
     if (typeof callback === 'function') {
-      var callId = this.getUUID();
-      var name = 'trigger' + callId;
+      const callId = this.getUUID();
+      const name = 'trigger' + callId;
       window[name] = callback;
       delete args.trigger;
       return callId;
     }
     return -1;
-  },
-  bindCall: function (methodName, callback) {
-    // 注册全局监听 call 函数
-    window[methodName] = callback;
-  },
-  handleTrigger: function (res) {
+  }
+
+  handleTrigger(res) {
     // 寻找 trigger 函数进行处理
-    var callId = res.callId;
+    const callId = res.callId;
     if (+callId !== -1) {
       window['trigger' + callId](res);
     }
-  },
-  handleCall: function (data) {
+  }
+
+  handleCall(data) {
     // 寻找 call 函数进行处理
-    var args = typeof data.args === 'string' ? JSON.parse(data.args) : data.args;
-    var ret = window[data.methodName](args);
-    var res = {
+    const args = typeof data.args === 'string' ? JSON.parse(data.args) : data.args;
+    const ret = window[data.methodName](args);
+    const res = {
       ret: ret || null,
       callId: data.callId,
       code: 0
     };
     if (this.inIOS) {
-      window.makeCallback(res);
+      window.makeCallback && window.makeCallback(res);
     } else {
-      var str = JSON.stringify(res);
+      const str = JSON.stringify(res);
       window.YTKJsBridge.makeCallback(str);
     }
-  },
-  handleEventCall: function (data) {
-    var eventName = data.event;
-    if (this[eventName]) {
-      this[eventName](data.arg);
+  }
+
+  handleEventCall(data) {
+    const { event, arg } = data;
+    if (this[event]) {
+      this[event](arg);
     }
-  },
-  getUUID: function () {
+  }
+
+  getUUID() {
     // 获取唯一标示 callId
-    var time = +new Date();
-    var id = this.uid++;
-    var callId = '' + time + id;
+    const time = +new Date();
+    const id = this.uid++;
+    const callId = '' + time + id;
     return +callId;
-  },
-  isEmptyObject: function (obj) {
+  }
+
+  isEmptyObject(obj) {
     // 因为客户端限制，需要判断对象是否拥有属性
     return !obj || JSON.stringify(obj) === '{}';
   }
-};
+}
 
-(function () {
-  // 注册调用客户端方法的回调
-  window.dispatchCallbackFromNative = WebView.handleTrigger;
-  // 注册客户端调用 JS 能力
-  window.dispatchNativeCall = WebView.handleCall.bind(WebView);
-  // 注册客户端向 JS 发送事件
-  window.dispatchNativeEvent = WebView.handleEventCall.bind(WebView);
-  window.JSBridge = WebView;
-})();
-
-exports.JSBridge = WebView;
+export default new JSBridge();
