@@ -70,6 +70,10 @@ class JSBridge {
     this[methodName] = callback;
   }
 
+  unlisten(methodName) {
+    this[methodName] = null;
+  }
+
   bindTrigger(args) {
     const callback = args && args.trigger;
     if (typeof callback === 'function') {

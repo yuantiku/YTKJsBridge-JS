@@ -2,10 +2,9 @@
 YTKJSBridge 是配合 [YTKWebView-Android](https://github.com/yuantiku/YTKJsBridge-Android) && [YTKWebView-IOS](https://github.com/yuantiku/YTKJsBridge-iOS) 使用，实现客户端与 JS 双向通信的工具。
 
 ## 使用
-全局注入了一个叫 JSBridge 的对象。
 ```Javascript
-<!-- html -->
-<script type="text/javascript" src="https://conan-online.fbcontent.cn/conan-math/webview.js"></script>
+// es6
+import JSBridge from 'ytk-jsbridge'
 ```
 
 ### JS 调用 native 服务
@@ -18,7 +17,7 @@ async: 是否异步调用<br>
 
 ### 监听 native 调用 JS 的服务
 ```Javascript
-JSBridge.bindCall(method, callback)
+JSBridge.provide(method, callback)
 ```
 method: 客户端调用的服务名<br>
 callback: JS 相应的回调函数<br>
@@ -37,3 +36,9 @@ JSBridge.listen(method, callback)
 ```
 method: 事件名<br>
 callback: 对应处理方法<br>
+
+### 取消监听客户端事件
+```Javascript
+JSBridge.unlisten(method)
+```
+method: 事件名<br>
