@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JSBridge 测试页面</title>
+  <!-- 真实与客户端联调时将模拟客户端注入的逻辑去除 -->
+  <script src="./mockHandler.js"></script>
+  <!-- 引入JSBridge -->
+  <script src="./index.js"></script>
+  <script src="https://unpkg.com/vue"></script>
+  <style type="text/css">
+    * {
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      box-sizing: border-box;
+      padding: 15px;
+      background-color: #fefefe;
+    }
+    h1 {
+      font-size: 18px;
+      line-height: 1.5;
+      color: #333;
+      margin-bottom: 5px;
+    }
+    p {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .wrap {
+      margin-bottom: 15px;
+    }
+    button {
+      width: 100%;
+      height: 40px;
+      margin-bottom: 10px;
+      background-color: #09f;
+      border: none;
+      outline: none;
+      border-radius: 10px;
+      color: #fff;
+    }
+
+    #app .message {
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    @media (min-width: 1200px) {
+      button {
+        width: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>说明</h1>
+    <p>
+      1. 调试信息展示的是 WebApp 收到的来源于 native 的消息；<br>
+      2. alert 弹窗展示的是模拟 native 收到的来源于 WebApp 的消息；<br>
+      3. 如果不支持的接口或服务控制台会输出错误。
+    </p>
+    <h1>call 接口示例</h1>
+    <div class="wrap">
+      <div v-for="(api, index) in callApiList" :key="index">
+        <button @click="testCall(api)">{{ api.label }}</button>
+      </div>
+    </div>
+
+    <h1>provide 接口示例</h1>
+    <div class="wrap">
+      <div v-for="(api, index) in provideApiList" :key="index">
+        <button @click="testProvide(api)">{{ api.label }}</button>
+      </div>
+    </div>
+
+    <h1>emit 接口示例</h1>
+    <div class="wrap">
+      <div v-for="(api, index) in emitApiList" :key="index">
+        <button @click="testEmit(api)">{{ api.label }}</button>
+      </div>
+    </div>
+
+    <h1>listen 接口示例</h1>
+    <div class="wrap">
+      <div v-for="(api, index) in listenApiList" :key="index">
+        <button @click="testListen(api)">{{ api.label }}</button>
+      </div>
+      <button @click="testUnlisten">test unlisten</button>
+    </div>
+
+    <h1>调试信息</h1>
+    <button @click="clearMessage">清理调试信息</button>
+    <div class="message" v-if="messageList.length > 0">调试信息:</div>
+    <div class="message" v-for="(message, index) in messageList" :key="index">{{message}}</div>
+  </div>
+
+  <script type="text/javascript">
+    // call api 测试配置列表
+    var callApiList = [
+      {
+        label: 'call getAppVersion(sync)',
+        methodName: 'getAppVersion',
+        args: null,
+        async: false
+      },
+      {
+        label: 'call uploadFile(async)',
+        methodName: 'uploadFile',
+        args: {
+          localPath: 'xxx',
+          trigger: function (data) {
+            if (data.code === 0) {
+              vm.message('uploadFile 返回结果: ' + data.ret)
+            } else {
+              vm.message('uploadFile 调用失败')
+            }
+          }
+        },
+        async: true
+      }
+    ]
+
+    var provideApiList = [
+      {
+        label: 'test provide',
+        methodName: 'eventHandler',
+        args: ['stop']
+      }
+    ]
+
+    var emitApiList = [
+      {
+        label: 'test emit',
+        methodName: 'start',
+        args: { key: 'value' }
+      }
+    ]
+
+    var listenApiList = [
+      {
+        label: 'test listen',
+        event: 'click',
+        arg: { key2: 'value2' }
+      }
+    ]
+
+    var vm = new Vue({
+      el: '#app',
+      data: {
+        messageList: [],
+        callApiList: callApiList,
+        provideApiList: provideApiList,
+        emitApiList: emitApiList,
+        listenApiList: listenApiList
+      },
+      created () {
+        JSBridge.provide('eventHandler', function(args) {
+          var name = args.length && args[0]
+          vm.message('收到源于 native 的消息, 消息名是 ' + name)
+        })
+
+        this.clickHandler = function(data) {
+          vm.message('监听到源自 native 的 click 事件, 内容是 ' + JSON.stringify(data))
+        }
+
+        JSBridge.listen('click', this.clickHandler)
+      },
+      methods: {
+        testCall: function (api) {
+          if (!api.async) {
+            var res = JSBridge.call(api.methodName, api.args, api.async)
+            if (res.code === 0) {
+              this.message(api.methodName + ' 返回结果: ' + JSON.stringify(res.ret))
+            } else {
+              this.message(api.methodName + '返回结果错误')
+            }
+          } else {
+            JSBridge.call(api.methodName, api.args, api.async)
+          }
+        },
+
+        testProvide: function (api) {
+          window.dispatchNativeCall(api)
+        },
+
+        testEmit: function(api) {
+          JSBridge.emit(api.methodName, api.args)
+        },
+
+        testListen: function(api) {
+          window.dispatchNativeEvent(api)
+        },
+
+        testUnlisten: function() {
+          this.message('取消了对 click 事件的监听')
+          JSBridge.unlisten('click', this.clickHandler)
+        },
+
+        apiCommonCallback: function (arguments, api) {
+          this.message(api.name + ' 回调')
+          this.message(util.stringifyArgs(arguments))
+        },
+
+        message: function (message) {
+          this.messageList.push(message)
+        },
+
+        clearMessage: function () {
+          this.messageList = []
+        }
+      }
+    })
+  </script>
+</body>
+</html>
