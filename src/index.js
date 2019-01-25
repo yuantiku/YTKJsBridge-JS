@@ -1,49 +1,51 @@
 // Android 与 JS 通信，只能接收 string，返回传入 object
 // IOS 与 JS 通信，接收 && 返回都是 object
-class JSBridge {
-  constructor() {
+export class WebView {
+  constructor(options = {}) {
     this.uid = 1;
-    this.inIOS = window.YTKJsBridge && typeof window.YTKJsBridge === 'function';
-    // 处理 Android 调用 JS 的回调方法
-    window.dispatchCallbackFromNative = this.handleTrigger.bind(this);
-    // 处理 Android 调用 JS 提供的服务
-    window.dispatchNativeCall = this.handleCall.bind(this);
-    // 注册客户端向 JS 发送事件
-    window.dispatchNativeEvent = this.handleEventCall.bind(this);
+    this.eventListeners = [];
+    const {
+      callHandlerName = 'YTKJsBridge',
+      sendEventName = 'sendEvent',
+      makeCallbackName = 'makeCallback',
+      nativeCallbackName = 'dispatchCallbackFromNative',
+      nativeCallName = 'dispatchNativeCall',
+      nativeEventName = 'dispatchNativeEvent'
+    } = options;
+
+    this.callHandlerName = callHandlerName;
+    this.sendEventName = sendEventName;
+    this.makeCallbackName = makeCallbackName;
+
+    this.supportHandler = window[callHandlerName] && typeof window[callHandlerName] === 'function';
+    this.supportEventHandler = window[sendEventName] && typeof window[sendEventName] === 'function';
+    this.supportCallback = window[makeCallbackName] && typeof window[makeCallbackName] === 'function';
+    this.supportHandlerObject = window[callHandlerName] && typeof window[callHandlerName] === 'object';
+
+    // 处理异步调用时的回调方法
+    window[nativeCallbackName] = this.dispatchCallbackFromNative.bind(this);
+    // 处理 native 调用 JS 提供的服务
+    window[nativeCallName] = this.dispatchNativeCall.bind(this);
+    // 注册 native 向 JS 发送事件
+    window[nativeEventName] = this.dispatchNativeEvent.bind(this);
   }
 
   call(methodName, args, async) {
-    if (async) {
-      // 异步
-      const callId = this.bindTrigger(args);
-      const isEmpty = this.isEmptyObject(args);
-      const data = {
-        methodName,
-        args: isEmpty ? null : args,
-        callId
-      };
-      if (this.inIOS) {
-        window.YTKJsBridge && window.YTKJsBridge(data);
-      } else {
-        window.YTKJsBridge.callNative(JSON.stringify(data));
-      }
-      return false;
+    const callId = async ? this.getCallId(args) : -1;
+    const empty = this.isEmptyObject(args);
+    const data = {
+      methodName,
+      args: empty ? null : args,
+      callId
+    };
+    if (this.supportHandler) {
+      return window[this.callHandlerName](data);
+    } else if (this.supportHandlerObject) {
+      return window[this.callHandlerName].callNative(JSON.stringify(data));
     } else {
-      // 同步
-      const isEmpty = this.isEmptyObject(args);
-      const data = {
-        methodName,
-        args: isEmpty ? null : args,
-        callId: -1
-      }
-      if (this.inIOS) {
-        return window.YTKJsBridge(data);
-      } else {
-        // Android 同步调用的返回值是 string
-        const res = window.YTKJsBridge.callNative(JSON.stringify(data));
-        return JSON.parse(res);
-      }
+      console.error(`Can not find ${this.callHandlerName} handler.`);
     }
+    return false;
   }
 
   provide(methodName, callback) {
@@ -56,25 +58,27 @@ class JSBridge {
       event: methodName,
       arg: args
     };
-    if (this.inIOS) {
-      window.sendEvent && window.sendEvent(data);
+    if (this.supportEventHandler) {
+      window[this.sendEventName](data);
+    } else if (this.supportHandlerObject) {
+      window[this.callHandlerName][this.sendEventName](JSON.stringify(data));
     } else {
-      window.YTKJsBridge.sendEvent(JSON.stringify(data));
+      console.error(`Can not find ${this.sendEventName} handler.`);
     }
   }
 
-  listen(methodName, callback) {
-    if (this[methodName]) {
-      this[methodName] = null;
-    }
-    this[methodName] = callback;
+  listen(type, listener) {
+    this.eventListeners.push({
+      type,
+      listener
+    });
   }
 
-  unlisten(methodName) {
-    this[methodName] = null;
+  unlisten(type, listener) {
+    this.eventListeners = this.eventListeners.filter(eventListener => type !== eventListener.type || listener !== eventListener.listener);
   }
 
-  bindTrigger(args) {
+  getCallId(args) {
     const callback = args && args.trigger;
     if (typeof callback === 'function') {
       const callId = this.getUUID();
@@ -86,16 +90,14 @@ class JSBridge {
     return -1;
   }
 
-  handleTrigger(res) {
-    // 寻找 trigger 函数进行处理
+  dispatchCallbackFromNative(res) {
     const callId = res.callId;
     if (+callId !== -1) {
       window['trigger' + callId](res);
     }
   }
 
-  handleCall(data) {
-    // 寻找 call 函数进行处理
+  dispatchNativeCall(data) {
     const args = typeof data.args === 'string' ? JSON.parse(data.args) : data.args;
     const ret = window[data.methodName](args);
     const res = {
@@ -103,18 +105,28 @@ class JSBridge {
       callId: data.callId,
       code: 0
     };
-    if (this.inIOS) {
-      window.makeCallback && window.makeCallback(res);
-    } else {
+    if (this.supportCallback) {
+      window[this.makeCallbackName](res);
+    } else if (this.supportHandlerObject) {
       const str = JSON.stringify(res);
-      window.YTKJsBridge.makeCallback(str);
+      window[this.callHandlerName][this.makeCallbackName](str);
+    } else {
+      console.error(`Can not find ${this.makeCallbackName} handler.`);
     }
   }
 
-  handleEventCall(data) {
+  dispatchNativeEvent(data) {
     const { event, arg } = data;
-    if (this[event]) {
-      this[event](arg);
+    let found = false;
+    for (let i = 0, len = this.eventListeners.length; i < len; i++) {
+      const { type, listener } = this.eventListeners[i];
+      if (event === type) {
+        found = true;
+        listener(arg);
+      }
+    }
+    if (!found) {
+      console.error(`Can not find handler of event ${event}`);
     }
   }
 
@@ -130,6 +142,22 @@ class JSBridge {
     // 因为客户端限制，需要判断对象是否拥有属性
     return !obj || JSON.stringify(obj) === '{}';
   }
+
+  parse(str) {
+    try {
+      return typeof str === 'string' ? JSON.parse(str) : str;
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  stringify(obj) {
+    try {
+      return JSON.stringify(obj);
+    } catch(e) {
+      console.error(e);
+    }
+  }
 }
 
-export default new JSBridge();
+export const JSBridge = new WebView();
