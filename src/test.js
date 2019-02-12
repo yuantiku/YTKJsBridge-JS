@@ -1,3 +1,3 @@
-import { JSBridge } from './index';
+import JsBridge from './index';
 
-window.JSBridge = JSBridge;
+window.JsBridge = JsBridge;

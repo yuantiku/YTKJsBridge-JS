@@ -1,5 +1,35 @@
 'use strict';
 
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) {
+    for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) {
+      arr2[i] = arr[i];
+    }
+
+    return arr2;
+  }
+}
+
+var arrayWithoutHoles = _arrayWithoutHoles;
+
+function _iterableToArray(iter) {
+  if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter);
+}
+
+var iterableToArray = _iterableToArray;
+
+function _nonIterableSpread() {
+  throw new TypeError("Invalid attempt to spread non-iterable instance");
+}
+
+var nonIterableSpread = _nonIterableSpread;
+
+function _toConsumableArray(arr) {
+  return arrayWithoutHoles(arr) || iterableToArray(arr) || nonIterableSpread();
+}
+
+var toConsumableArray = _toConsumableArray;
+
 function createCommonjsModule(fn, module) {
 	return module = { exports: {} }, fn(module, module.exports), module.exports;
 }
@@ -56,48 +86,71 @@ var WebView =
 /*#__PURE__*/
 function () {
   function WebView() {
-    var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
     classCallCheck(this, WebView);
 
     this.uid = 1;
     this.eventListeners = [];
-    var _options$callHandlerN = options.callHandlerName,
-        callHandlerName = _options$callHandlerN === void 0 ? 'YTKJsBridge' : _options$callHandlerN,
-        _options$sendEventNam = options.sendEventName,
-        sendEventName = _options$sendEventNam === void 0 ? 'sendEvent' : _options$sendEventNam,
-        _options$makeCallback = options.makeCallbackName,
-        makeCallbackName = _options$makeCallback === void 0 ? 'makeCallback' : _options$makeCallback,
-        _options$nativeCallba = options.nativeCallbackName,
-        nativeCallbackName = _options$nativeCallba === void 0 ? 'dispatchCallbackFromNative' : _options$nativeCallba,
-        _options$nativeCallNa = options.nativeCallName,
-        nativeCallName = _options$nativeCallNa === void 0 ? 'dispatchNativeCall' : _options$nativeCallNa,
-        _options$nativeEventN = options.nativeEventName,
-        nativeEventName = _options$nativeEventN === void 0 ? 'dispatchNativeEvent' : _options$nativeEventN;
-    this.callHandlerName = callHandlerName;
-    this.sendEventName = sendEventName;
-    this.makeCallbackName = makeCallbackName;
-    this.supportHandler = window[callHandlerName] && typeof window[callHandlerName] === 'function';
-    this.supportEventHandler = window[sendEventName] && typeof window[sendEventName] === 'function';
-    this.supportCallback = window[makeCallbackName] && typeof window[makeCallbackName] === 'function';
-    this.supportHandlerObject = window[callHandlerName] && _typeof_1(window[callHandlerName]) === 'object'; // 处理异步调用时的回调方法
-
-    window[nativeCallbackName] = this.dispatchCallbackFromNative.bind(this); // 处理 native 调用 JS 提供的服务
-
-    window[nativeCallName] = this.dispatchNativeCall.bind(this); // 注册 native 向 JS 发送事件
-
-    window[nativeEventName] = this.dispatchNativeEvent.bind(this);
+    this.promiseMap = {};
+    this.setSupportProperty();
+    this.bindDispatchMethods();
   }
 
   createClass(WebView, [{
+    key: "setSupportProperty",
+    value: function setSupportProperty() {
+      var callHandlerName = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'YTKJsBridge';
+      var sendEventName = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'sendEvent';
+      var makeCallbackName = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'makeCallback';
+      this.callHandlerName = callHandlerName;
+      this.sendEventName = sendEventName;
+      this.makeCallbackName = makeCallbackName;
+      this.supportHandler = window[callHandlerName] && typeof window[callHandlerName] === 'function';
+      this.supportEventHandler = window[sendEventName] && typeof window[sendEventName] === 'function';
+      this.supportCallback = window[makeCallbackName] && typeof window[makeCallbackName] === 'function';
+      this.supportHandlerObject = window[callHandlerName] && _typeof_1(window[callHandlerName]) === 'object';
+    }
+  }, {
+    key: "bindDispatchMethods",
+    value: function bindDispatchMethods() {
+      var nativeCallbackName = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'dispatchCallbackFromNative';
+      var nativeCallName = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'dispatchNativeCall';
+      var nativeEventName = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'dispatchNativeEvent';
+      // 处理异步调用时的回调方法
+      window[nativeCallbackName] = this.dispatchCallbackFromNative.bind(this); // 处理 native 调用 JS 提供的服务
+
+      window[nativeCallName] = this.dispatchNativeCall.bind(this); // 注册 native 向 JS 发送事件
+
+      window[nativeEventName] = this.dispatchNativeEvent.bind(this);
+    }
+  }, {
+    key: "custom",
+    value: function custom(config) {
+      var _config$callHandlerNa = config.callHandlerName,
+          callHandlerName = _config$callHandlerNa === void 0 ? 'YTKJsBridge' : _config$callHandlerNa,
+          _config$sendEventName = config.sendEventName,
+          sendEventName = _config$sendEventName === void 0 ? 'sendEvent' : _config$sendEventName,
+          _config$makeCallbackN = config.makeCallbackName,
+          makeCallbackName = _config$makeCallbackN === void 0 ? 'makeCallback' : _config$makeCallbackN,
+          _config$nativeCallbac = config.nativeCallbackName,
+          nativeCallbackName = _config$nativeCallbac === void 0 ? 'dispatchCallbackFromNative' : _config$nativeCallbac,
+          _config$nativeCallNam = config.nativeCallName,
+          nativeCallName = _config$nativeCallNam === void 0 ? 'dispatchNativeCall' : _config$nativeCallNam,
+          _config$nativeEventNa = config.nativeEventName,
+          nativeEventName = _config$nativeEventNa === void 0 ? 'dispatchNativeEvent' : _config$nativeEventNa;
+      this.setSupportProperty(callHandlerName, sendEventName, makeCallbackName);
+      this.bindDispatchMethods(nativeCallbackName, nativeCallName, nativeEventName);
+    }
+  }, {
     key: "call",
-    value: function call(methodName, args, async) {
-      var callId = async ? this.getCallId(args) : -1;
-      var empty = this.isEmptyObject(args);
+    value: function call(methodName) {
+      for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        args[_key - 1] = arguments[_key];
+      }
+
       var data = {
         methodName: methodName,
-        args: empty ? null : args,
-        callId: callId
+        args: args,
+        callId: -1
       };
 
       if (this.supportHandler) {
@@ -111,16 +164,49 @@ function () {
       return false;
     }
   }, {
+    key: "callAsync",
+    value: function callAsync(methodName) {
+      var _this = this;
+
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+        args[_key2 - 1] = arguments[_key2];
+      }
+
+      var callId = this.getUUID();
+      var data = {
+        methodName: methodName,
+        args: args,
+        callId: callId
+      };
+      var promise = new Promise(function (resolve, reject) {
+        _this.promiseMap[callId] = resolve;
+
+        if (_this.supportHandler) {
+          window[_this.callHandlerName](data);
+        } else if (_this.supportHandlerObject) {
+          window[_this.callHandlerName].callNative(JSON.stringify(data));
+        } else {
+          console.error("Can not find ".concat(_this.callHandlerName, " handler."));
+          reject("Can not find ".concat(_this.callHandlerName, " handler."));
+        }
+      });
+      return promise;
+    }
+  }, {
     key: "provide",
-    value: function provide(methodName, callback) {
+    value: function provide(methodName, func) {
       // 注册全局监听 call 函数
-      window[methodName] = callback;
+      window[methodName] = func;
     }
   }, {
     key: "emit",
-    value: function emit(methodName, args) {
+    value: function emit(eventName) {
+      for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+        args[_key3 - 1] = arguments[_key3];
+      }
+
       var data = {
-        event: methodName,
+        event: eventName,
         arg: args
       };
 
@@ -134,33 +220,18 @@ function () {
     }
   }, {
     key: "listen",
-    value: function listen(type, listener) {
+    value: function listen(eventName, listener) {
       this.eventListeners.push({
-        type: type,
+        eventName: eventName,
         listener: listener
       });
     }
   }, {
     key: "unlisten",
-    value: function unlisten(type, listener) {
+    value: function unlisten(eventName, listener) {
       this.eventListeners = this.eventListeners.filter(function (eventListener) {
-        return type !== eventListener.type || listener !== eventListener.listener;
+        return eventName !== eventListener.eventName || listener !== eventListener.listener;
       });
-    }
-  }, {
-    key: "getCallId",
-    value: function getCallId(args) {
-      var callback = args && args.trigger;
-
-      if (typeof callback === 'function') {
-        var callId = this.getUUID();
-        var name = 'trigger' + callId;
-        window[name] = callback;
-        delete args.trigger;
-        return callId;
-      }
-
-      return -1;
     }
   }, {
     key: "dispatchCallbackFromNative",
@@ -168,7 +239,7 @@ function () {
       var callId = res.callId;
 
       if (+callId !== -1) {
-        window['trigger' + callId](res);
+        this.promiseMap[callId](res);
       }
     }
   }, {
@@ -200,12 +271,12 @@ function () {
 
       for (var i = 0, len = this.eventListeners.length; i < len; i++) {
         var _this$eventListeners$ = this.eventListeners[i],
-            type = _this$eventListeners$.type,
+            eventName = _this$eventListeners$.eventName,
             listener = _this$eventListeners$.listener;
 
-        if (event === type) {
+        if (event === eventName) {
           found = true;
-          listener(arg);
+          listener.apply(void 0, toConsumableArray(arg));
         }
       }
 
@@ -222,34 +293,11 @@ function () {
       var callId = '' + time + id;
       return +callId;
     }
-  }, {
-    key: "isEmptyObject",
-    value: function isEmptyObject(obj) {
-      // 因为客户端限制，需要判断对象是否拥有属性
-      return !obj || JSON.stringify(obj) === '{}';
-    }
-  }, {
-    key: "parse",
-    value: function parse(str) {
-      try {
-        return typeof str === 'string' ? JSON.parse(str) : str;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, {
-    key: "stringify",
-    value: function stringify(obj) {
-      try {
-        return JSON.stringify(obj);
-      } catch (e) {
-        console.error(e);
-      }
-    }
   }]);
 
   return WebView;
 }();
-var JSBridge = new WebView();
 
-window.JSBridge = JSBridge;
+var JsBridge = new WebView();
+
+window.JsBridge = JsBridge;

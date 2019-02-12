@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>JSBridge 测试页面</title>
+  <title>JsBridge 测试页面</title>
   <!-- 真实与客户端联调时将模拟客户端注入的逻辑去除 -->
   <script src="./mockHandler.js"></script>
   <!-- 引入JSBridge -->
@@ -105,26 +105,33 @@
     // call api 测试配置列表
     var callApiList = [
       {
-        label: 'call getAppVersion(sync)',
+        label: 'call getAppVersion(sync, no args)',
         methodName: 'getAppVersion',
-        args: null,
-        async: false
+        async: false,
+        withArgs: false
       },
       {
-        label: 'call uploadFile(async)',
+        label: 'call getAppVersion2(sync, args)',
+        methodName: 'getAppVersion',
+        async: false,
+        withArgs: true,
+        id: 1,
+        title: 'Call test'
+      },
+      {
+        label: 'call uploadFile(async, no args)',
         methodName: 'uploadFile',
-        args: {
-          localPath: 'xxx',
-          trigger: function (data) {
-            if (data.code === 0) {
-              vm.message('uploadFile 返回结果: ' + data.ret)
-            } else {
-              vm.message('uploadFile 调用失败')
-            }
-          }
-        },
-        async: true
-      }
+        async: true,
+        withArgs: false
+      },
+      {
+        label: 'call uploadFile2(async, args)',
+        methodName: 'getAppVersion',
+        async: true,
+        withArgs: true,
+        id: 2,
+        title: 'Call async test'
+      },
     ]
 
     var provideApiList = [
@@ -137,9 +144,16 @@
 
     var emitApiList = [
       {
-        label: 'test emit',
-        methodName: 'start',
-        args: { key: 'value' }
+        label: 'test emit(no args)',
+        eventName: 'load',
+        withArgs: false
+      },
+      {
+        label: 'test emit(have args)',
+        eventName: 'ready',
+        withArgs: true,
+        id: 3,
+        title: 'Emit test'
       }
     ]
 
@@ -147,7 +161,7 @@
       {
         label: 'test listen',
         event: 'click',
-        arg: { key2: 'value2' }
+        arg: [4, 'Listen test']  // 此处的 2 为 id，Listen test 为 title，支持参数展开
       }
     ]
 
@@ -161,28 +175,40 @@
         listenApiList: listenApiList
       },
       created () {
-        JSBridge.provide('eventHandler', function(args) {
+        JsBridge.provide('eventHandler', function(args) {
           var name = args.length && args[0]
           vm.message('收到源于 native 的消息, 消息名是 ' + name)
         })
 
-        this.clickHandler = function(data) {
-          vm.message('监听到源自 native 的 click 事件, 内容是 ' + JSON.stringify(data))
+        this.clickHandler = function(id, title) {
+          vm.message('监听到源自 native 的 click 事件, id: ' + id + ', title: ' + title)
         }
 
-        JSBridge.listen('click', this.clickHandler)
+        JsBridge.listen('click', this.clickHandler)
       },
       methods: {
         testCall: function (api) {
+          var args = []
+          args.push(api.methodName)
+          if (api.withArgs) {
+            args.push(api.id)
+            args.push(api.title)
+          }
           if (!api.async) {
-            var res = JSBridge.call(api.methodName, api.args, api.async)
+            var res = JsBridge.call(...args)
             if (res.code === 0) {
               this.message(api.methodName + ' 返回结果: ' + JSON.stringify(res.ret))
             } else {
               this.message(api.methodName + '返回结果错误')
             }
           } else {
-            JSBridge.call(api.methodName, api.args, api.async)
+            JsBridge.callAsync(...args).then(res => {
+              if (res.code === 0) {
+                this.message('uploadFile 返回结果: ' + res.ret)
+              } else {
+                this.message('uploadFile 调用失败')
+              }
+            })
           }
         },
 
@@ -191,7 +217,12 @@
         },
 
         testEmit: function(api) {
-          JSBridge.emit(api.methodName, api.args)
+          if (api.withArgs) {
+            // 支持参数展开
+            JsBridge.emit(api.eventName, api.id, api.title)
+          } else {
+            JsBridge.emit(api.eventName)
+          }
         },
 
         testListen: function(api) {
@@ -199,8 +230,8 @@
         },
 
         testUnlisten: function() {
-          this.message('取消了对 click 事件的监听')
-          JSBridge.unlisten('click', this.clickHandler)
+          this.message('取消了对 click 事件的监听，点击 listen 按钮不再触发事件')
+          JsBridge.unlisten('click', this.clickHandler)
         },
 
         apiCommonCallback: function (arguments, api) {

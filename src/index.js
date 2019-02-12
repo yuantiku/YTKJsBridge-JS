@@ -1,18 +1,20 @@
 // Android 与 JS 通信，只能接收 string，返回传入 object
 // IOS 与 JS 通信，接收 && 返回都是 object
-export class WebView {
-  constructor(options = {}) {
+class WebView {
+  constructor() {
     this.uid = 1;
     this.eventListeners = [];
-    const {
-      callHandlerName = 'YTKJsBridge',
-      sendEventName = 'sendEvent',
-      makeCallbackName = 'makeCallback',
-      nativeCallbackName = 'dispatchCallbackFromNative',
-      nativeCallName = 'dispatchNativeCall',
-      nativeEventName = 'dispatchNativeEvent'
-    } = options;
+    this.promiseMap = {};
 
+    this.setSupportProperty();
+    this.bindDispatchMethods();
+  }
+
+  setSupportProperty(
+    callHandlerName = 'YTKJsBridge',
+    sendEventName = 'sendEvent',
+    makeCallbackName = 'makeCallback'
+  ) {
     this.callHandlerName = callHandlerName;
     this.sendEventName = sendEventName;
     this.makeCallbackName = makeCallbackName;
@@ -21,7 +23,13 @@ export class WebView {
     this.supportEventHandler = window[sendEventName] && typeof window[sendEventName] === 'function';
     this.supportCallback = window[makeCallbackName] && typeof window[makeCallbackName] === 'function';
     this.supportHandlerObject = window[callHandlerName] && typeof window[callHandlerName] === 'object';
+  }
 
+  bindDispatchMethods(
+    nativeCallbackName = 'dispatchCallbackFromNative',
+    nativeCallName = 'dispatchNativeCall',
+    nativeEventName = 'dispatchNativeEvent'
+  ) {
     // 处理异步调用时的回调方法
     window[nativeCallbackName] = this.dispatchCallbackFromNative.bind(this);
     // 处理 native 调用 JS 提供的服务
@@ -30,13 +38,24 @@ export class WebView {
     window[nativeEventName] = this.dispatchNativeEvent.bind(this);
   }
 
-  call(methodName, args, async) {
-    const callId = async ? this.getCallId(args) : -1;
-    const empty = this.isEmptyObject(args);
+  custom(config) {
+    const {
+      callHandlerName = 'YTKJsBridge',
+      sendEventName = 'sendEvent',
+      makeCallbackName = 'makeCallback',
+      nativeCallbackName = 'dispatchCallbackFromNative',
+      nativeCallName = 'dispatchNativeCall',
+      nativeEventName = 'dispatchNativeEvent'
+    } = config;
+    this.setSupportProperty(callHandlerName, sendEventName, makeCallbackName);
+    this.bindDispatchMethods(nativeCallbackName, nativeCallName, nativeEventName);
+  }
+
+  call(methodName, ...args) {
     const data = {
       methodName,
-      args: empty ? null : args,
-      callId
+      args,
+      callId: -1
     };
     if (this.supportHandler) {
       return window[this.callHandlerName](data);
@@ -48,14 +67,35 @@ export class WebView {
     return false;
   }
 
-  provide(methodName, callback) {
-    // 注册全局监听 call 函数
-    window[methodName] = callback;
+  callAsync(methodName, ...args) {
+    const callId = this.getUUID();
+    const data = {
+      methodName,
+      args,
+      callId
+    };
+    const promise = new Promise((resolve, reject) => {
+      this.promiseMap[callId] = resolve;
+      if (this.supportHandler) {
+        window[this.callHandlerName](data);
+      } else if (this.supportHandlerObject) {
+        window[this.callHandlerName].callNative(JSON.stringify(data));
+      } else {
+        console.error(`Can not find ${this.callHandlerName} handler.`);
+        reject(`Can not find ${this.callHandlerName} handler.`);
+      }
+    });
+    return promise;
   }
 
-  emit(methodName, args) {
+  provide(methodName, func) {
+    // 注册全局监听 call 函数
+    window[methodName] = func;
+  }
+
+  emit(eventName, ...args) {
     const data = {
-      event: methodName,
+      event: eventName,
       arg: args
     };
     if (this.supportEventHandler) {
@@ -67,33 +107,21 @@ export class WebView {
     }
   }
 
-  listen(type, listener) {
+  listen(eventName, listener) {
     this.eventListeners.push({
-      type,
+      eventName,
       listener
     });
   }
 
-  unlisten(type, listener) {
-    this.eventListeners = this.eventListeners.filter(eventListener => type !== eventListener.type || listener !== eventListener.listener);
-  }
-
-  getCallId(args) {
-    const callback = args && args.trigger;
-    if (typeof callback === 'function') {
-      const callId = this.getUUID();
-      const name = 'trigger' + callId;
-      window[name] = callback;
-      delete args.trigger;
-      return callId;
-    }
-    return -1;
+  unlisten(eventName, listener) {
+    this.eventListeners = this.eventListeners.filter(eventListener => eventName !== eventListener.eventName || listener !== eventListener.listener);
   }
 
   dispatchCallbackFromNative(res) {
     const callId = res.callId;
     if (+callId !== -1) {
-      window['trigger' + callId](res);
+      this.promiseMap[callId](res);
     }
   }
 
@@ -119,10 +147,10 @@ export class WebView {
     const { event, arg } = data;
     let found = false;
     for (let i = 0, len = this.eventListeners.length; i < len; i++) {
-      const { type, listener } = this.eventListeners[i];
-      if (event === type) {
+      const { eventName, listener } = this.eventListeners[i];
+      if (event === eventName) {
         found = true;
-        listener(arg);
+        listener(...arg);
       }
     }
     if (!found) {
@@ -137,27 +165,6 @@ export class WebView {
     const callId = '' + time + id;
     return +callId;
   }
-
-  isEmptyObject(obj) {
-    // 因为客户端限制，需要判断对象是否拥有属性
-    return !obj || JSON.stringify(obj) === '{}';
-  }
-
-  parse(str) {
-    try {
-      return typeof str === 'string' ? JSON.parse(str) : str;
-    } catch(e) {
-      console.error(e);
-    }
-  }
-
-  stringify(obj) {
-    try {
-      return JSON.stringify(obj);
-    } catch(e) {
-      console.error(e);
-    }
-  }
 }
 
-export const JSBridge = new WebView();
+export default new WebView();

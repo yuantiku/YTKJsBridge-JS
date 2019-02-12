@@ -1,6 +1,7 @@
 // native 在 window 中注入处理 handler
 // 模拟 native 的注入函数
 window.YTKJsBridge = function (data) {
+  alert('native recieve: methodName: ' + data.methodName + ', args: ' + JSON.stringify(data.args))
   switch(data.methodName) {
     case 'getAppVersion':
       return {
@@ -8,11 +9,13 @@ window.YTKJsBridge = function (data) {
         code: 0
       };
     case 'uploadFile':
-      window.dispatchCallbackFromNative && window.dispatchCallbackFromNative({
-        ret: 'https://www.yuanfudao.com',
-        code: 0,
-        callId: data.callId
-      })
+      setTimeout(() => {
+        window.dispatchCallbackFromNative && window.dispatchCallbackFromNative({
+          ret: 'https://www.yuanfudao.com',
+          code: 0,
+          callId: data.callId
+        })
+      }, 100)
       return false
     default:
       return false
