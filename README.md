@@ -70,8 +70,11 @@ func: JS 相应的回调函数<br>
 ```Javascript
 JsBridge.emit(method, ...args)
 
-// example
-JsBridge.emit('ready')
+// without args
+JsBridge.emit('load')
+
+// with multi args
+JsBridge.emit('ready', id, title)
 ```
 method: 事件名<br>
 args: 参数<br>
