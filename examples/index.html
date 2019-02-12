@@ -175,8 +175,7 @@
         listenApiList: listenApiList
       },
       created () {
-        JsBridge.provide('eventHandler', function(args) {
-          var name = args.length && args[0]
+        JsBridge.provide('eventHandler', function(name) {
           vm.message('收到源于 native 的消息, 消息名是 ' + name)
         })
 

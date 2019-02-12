@@ -245,8 +245,12 @@ function () {
   }, {
     key: "dispatchNativeCall",
     value: function dispatchNativeCall(data) {
+      var _window;
+
       var args = typeof data.args === 'string' ? JSON.parse(data.args) : data.args;
-      var ret = window[data.methodName](args);
+
+      var ret = (_window = window)[data.methodName].apply(_window, toConsumableArray(args));
+
       var res = {
         ret: ret || null,
         callId: data.callId,

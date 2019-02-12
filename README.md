@@ -23,9 +23,9 @@ nativeEventName: native 调用 WebApp 事件时执行的对象(接口)名
 ## 快速上手
 ### WebApp 调用 native 服务
 ```Javascript
-JsBridge.call(method, args, async)
-
 // example of call sync
+JsBridge.call(method, ...args)
+
 const res = JsBridge.call('getAppVersion')
 // res: {
 //   ret: result of call method,
@@ -33,33 +33,30 @@ const res = JsBridge.call('getAppVersion')
 // }
 
 // example of call async
-const args = {
-  ...params,
-  trigger: (res) => {
-    const { ret, code } = res
-    if (code === 0) {
-      // correct handler
-    } else {
-      // wrong handler
-    }
+JsBridge.callAsync(method, ...args)
+
+JsBridge.callAsync('request', 'GET', 'https://www.yuanfudao.com').then(res => {
+  const { ret, code } = res
+  if (code === 0) {
+    // correct handler
+  } else {
+    // wrong handler
   }
-}
-JsBridge.call('uploadFile', args, true)
+})
 ```
 method: 方法名<br>
-args: 传给客户端的参数，如果有异步回调请在 args 注入。如：args = { trigger: () => {} }<br>
-async: 是否异步调用<br>
+args: 传给客户端的参数<br>
 
 ### WebApp 提供服务供 native 调用
 ```Javascript
-JsBridge.provide(method, callback)
+JsBridge.provide(method, func)
 
 // example
-JsBridge.provide('eventHandler', args => {
-  const eventName = args.length && args[0]
+JsBridge.provide('eventHandler', (eventName, data) => {
   switch(eventName) {
     case 'stop':
       // stop handler
+      console.log(data)
       break
     default:
       break
@@ -67,12 +64,11 @@ JsBridge.provide('eventHandler', args => {
 })
 ```
 method: 客户端调用的服务名<br>
-callback: JS 相应的回调函数<br>
-callback 参数示例：[arg0, arg1]<br>
+func: JS 相应的回调函数<br>
 
 ### WebApp 触发 native 事件
 ```Javascript
-JsBridge.emit(method, args)
+JsBridge.emit(method, ...args)
 
 // example
 JsBridge.emit('ready')
@@ -82,16 +78,21 @@ args: 参数<br>
 
 ### WebApp 监听 native 事件
 ```Javascript
-JsBridge.listen(type, listener)
+JsBridge.listen(eventName, listener)
+
+// example
+JsBridge.listen('click', (id, title) => {
+  // handle with id, title
+})
 ```
-type: 事件名<br>
+eventName: 事件名<br>
 listener: 对应处理方法<br>
 
 ### WebApp 取消监听 native 事件
 ```Javascript
-JsBridge.unlisten(type, listener)
+JsBridge.unlisten(eventName, listener)
 ```
-type: 事件名<br>
+eventName: 事件名<br>
 listener: 对应处理方法<br>
 
 ## 实现原理

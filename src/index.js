@@ -127,7 +127,7 @@ class WebView {
 
   dispatchNativeCall(data) {
     const args = typeof data.args === 'string' ? JSON.parse(data.args) : data.args;
-    const ret = window[data.methodName](args);
+    const ret = window[data.methodName](...args);
     const res = {
       ret: ret || null,
       callId: data.callId,
