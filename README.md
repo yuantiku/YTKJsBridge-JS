@@ -21,7 +21,7 @@ nativeCallName: native 调用 WebApp 服务执行的对象(接口)名<br>
 nativeEventName: native 调用 WebApp 事件时执行的对象(接口)名
 
 ## 快速上手
-### JS 调用 native 服务
+### WebApp 调用 native 服务
 ```Javascript
 JsBridge.call(method, args, async)
 
@@ -50,7 +50,7 @@ method: 方法名<br>
 args: 传给客户端的参数，如果有异步回调请在 args 注入。如：args = { trigger: () => {} }<br>
 async: 是否异步调用<br>
 
-### 提供服务供 native 调用
+### WebApp 提供服务供 native 调用
 ```Javascript
 JsBridge.provide(method, callback)
 
@@ -70,7 +70,7 @@ method: 客户端调用的服务名<br>
 callback: JS 相应的回调函数<br>
 callback 参数示例：[arg0, arg1]<br>
 
-### 发送 JS 事件
+### WebApp 触发 native 事件
 ```Javascript
 JsBridge.emit(method, args)
 
@@ -80,14 +80,14 @@ JsBridge.emit('ready')
 method: 事件名<br>
 args: 参数<br>
 
-### 监听客户端事件
+### WebApp 监听 native 事件
 ```Javascript
 JsBridge.listen(type, listener)
 ```
 type: 事件名<br>
 listener: 对应处理方法<br>
 
-### 取消监听客户端事件
+### WebApp 取消监听 native 事件
 ```Javascript
 JsBridge.unlisten(type, listener)
 ```
